@@ -10,7 +10,7 @@ import EBUS from "../../event-bus";
 import { ADAPTER } from "../adapt";
 import { i18n } from "../../utils/i18n";
 
-type AuthorPIDs = {
+type ArtistPIDs = {
   id?: string,
   pids: string[],
 }
@@ -51,7 +51,7 @@ type UgoiraMeta = {
 
 interface PixivAPI {
   fetchChapters(): Promise<Chapter[]>;
-  next(source: Chapter): AsyncGenerator<Result<AuthorPIDs[]>>;
+  next(source: Chapter): AsyncGenerator<Result<ArtistPIDs[]>>;
   title(): string;
 }
 type PixivTop = {
@@ -96,7 +96,7 @@ class PixivHomeAPI implements PixivAPI {
     };
     return chapters;
   }
-  async *next(chapter: Chapter): AsyncGenerator<Result<AuthorPIDs[]>> {
+  async *next(chapter: Chapter): AsyncGenerator<Result<ArtistPIDs[]>> {
     const pidList = this.pids[chapter.source];
     if (pidList.length === 0) {
       yield Result.ok([]);
@@ -121,28 +121,28 @@ class PixivHomeAPI implements PixivAPI {
 }
 
 class PixivArtistWorksAPI implements PixivAPI {
-  author?: string;
+  artist?: string;
   chapterPids: Map<number, string[]> = new Map();
   title(): string {
-    return this.author ?? "author";
+    return this.artist ?? "artist-unknown";
   }
   constructor() {
     if (ADAPTER.conf.pixivRecordReading) {
-      EBUS.subscribe("ifq-do", (_index, imf) => window.localStorage.setItem(`cl-${this.author}-last-read`, imf.node.href));
+      EBUS.subscribe("ifq-do", (_index, imf) => window.localStorage.setItem(`cl-${this.artist}-last-read`, imf.node.href));
     }
   }
   async fetchChapters(): Promise<Chapter[]> {
-    this.author = findAuthorID();
-    if (!this.author) throw new Error("Cannot find author id!");
-    // request all illusts from https://www.pixiv.net/ajax/user/{author}/profile/all
-    const res = await window.fetch(`https://www.pixiv.net/ajax/user/${this.author}/profile/all`).then(resp => resp.json()).catch(Error);
+    this.artist = await this.findArtistID();
+    if (!this.artist) throw new Error("Cannot find artist id!");
+    // request all illusts from https://www.pixiv.net/ajax/user/{artist}/profile/all
+    const res = await window.fetch(`https://www.pixiv.net/ajax/user/${this.artist}/profile/all`).then(resp => resp.json()).catch(Error);
     if (res instanceof Error) throw res;
     if (res.error) throw new Error(`Fetch illust list error: ${res.message}`);
     let pidList = [...Object.keys(res.body.illusts), ...Object.keys(res.body.manga)];
     pidList = pidList.sort((a, b) => parseInt(b) - parseInt(a));
-    const latest = window.localStorage.getItem(`cl-${this.author}-latest`);
+    const latest = window.localStorage.getItem(`cl-${this.artist}-latest`);
     // save latest art work pid
-    window.localStorage.setItem(`cl-${this.author}-latest`, pidList[0]);
+    window.localStorage.setItem(`cl-${this.artist}-latest`, pidList[0]);
     const chapters = [];
 
     const latestIndex = latest ? pidList.indexOf(latest) : -1;
@@ -161,7 +161,7 @@ class PixivArtistWorksAPI implements PixivAPI {
     }
 
     if (ADAPTER.conf.pixivRecordReading) {
-      const lastRead = window.localStorage.getItem(`cl-${this.author}-last-read`)?.match(/artworks\/(\d+)$/)?.[1];
+      const lastRead = window.localStorage.getItem(`cl-${this.artist}-last-read`)?.match(/artworks\/(\d+)$/)?.[1];
       const lastReadIndex = lastRead ? pidList.indexOf(lastRead) : -1;
       if (lastReadIndex > 0 && lastReadIndex < pidList.length - 1) {
         const chapterAfterRead = new Chapter(chapters.length + 1, ADAPTER.conf.pixivAscendWorks ? i18n.beforeLastReading.get() : i18n.afterLastReading.get(), "");
@@ -181,7 +181,7 @@ class PixivArtistWorksAPI implements PixivAPI {
     chapters.push(chapter);
     return chapters;
   }
-  async *next(chapter: Chapter): AsyncGenerator<Result<AuthorPIDs[]>> {
+  async *next(chapter: Chapter): AsyncGenerator<Result<ArtistPIDs[]>> {
     let pidList = this.chapterPids.get(chapter.id);
     if (!pidList) throw new Error("cannot get pid list of " + chapter.title);
     if (ADAPTER.conf.pixivAscendWorks) {
@@ -189,14 +189,29 @@ class PixivArtistWorksAPI implements PixivAPI {
     }
     while (pidList.length > 0) {
       const pids = pidList.splice(0, 20);
-      yield Result.ok([{ id: this.author, pids }]);
+      yield Result.ok([{ id: this.artist, pids }]);
     }
+  }
+  async findArtistID(): Promise<string | undefined> {
+    // find artist eg. https://www.pixiv.net/en/users/xxx
+    let href: string | undefined = window.location.href;
+    const artistID = /users\/(\d+)/.exec(href)?.[1];
+    if (artistID) return artistID;
+    const pid = /artworks\/(\d+)/.exec(href)?.[1];
+    if (!pid) return;
+    href = document.querySelector<HTMLAnchorElement>("a[data-gtm-value][href*='/users/']")?.href ||
+      document.querySelector<HTMLAnchorElement>("a.user-details-icon[href*='/users/']")?.href;
+    if (href) {
+      const artistID = /users\/(\d+)/.exec(href)?.[1];
+      if (artistID) return artistID;
+    }
+    return await window.fetch(`${window.location.origin}/ajax/illust/${pid}?lang=en`).then(res => res.json()).then(data => data.body?.userId as string | undefined);
   }
 }
 
 const PID_EXTRACT = /\/(\d+)_([a-z]+)\d*\.\w*$/;
 type PageData = { error: boolean, message: string, body: Page[] };
-class PixivMatcher extends BaseMatcher<AuthorPIDs[]> {
+class PixivMatcher extends BaseMatcher<ArtistPIDs[]> {
   api: PixivAPI;
   meta: GalleryMeta;
   pageCount: number = 0;
@@ -258,9 +273,9 @@ before contentType: ${contentType}, after contentType: ${blob.type}
   }
 
 
-  private async fetchTagsByPids(authorID: string, pids: string[]): Promise<void> {
+  private async fetchTagsByPids(artistID: string, pids: string[]): Promise<void> {
     try {
-      const raw = await window.fetch(`https://www.pixiv.net/ajax/user/${authorID}/profile/illusts?ids[]=${pids.join("&ids[]=")}&work_category=illustManga&is_first_page=0&lang=en`).then(resp => resp.json());
+      const raw = await window.fetch(`https://www.pixiv.net/ajax/user/${artistID}/profile/illusts?ids[]=${pids.join("&ids[]=")}&work_category=illustManga&is_first_page=0&lang=en`).then(resp => resp.json());
       const data = raw as { error: boolean, message: string, body: { works: Record<string, Work> } }
       if (!data.error) {
         // just pick up the fields we need
@@ -292,7 +307,7 @@ before contentType: ${contentType}, after contentType: ${blob.type}
     return this.api.fetchChapters();
   }
 
-  fetchPagesSource(chapter: Chapter): AsyncGenerator<Result<AuthorPIDs[]>> {
+  fetchPagesSource(chapter: Chapter): AsyncGenerator<Result<ArtistPIDs[]>> {
     return this.api.next(chapter);
   }
 
@@ -305,7 +320,7 @@ before contentType: ${contentType}, after contentType: ${blob.type}
     return pids.map(p => ([p, this.pidDatas.get(p)!]));
   }
 
-  async parseImgNodes(aps: AuthorPIDs[]): Promise<ImageNode[]> {
+  async parseImgNodes(aps: ArtistPIDs[]): Promise<ImageNode[]> {
     const list: ImageNode[] = [];
     if (aps.length === 0) return list;
     // async function but no await, it will fetch tags in background
@@ -419,17 +434,9 @@ before contentType: ${contentType}, after contentType: ${blob.type}
     }
     return url;
   }
+
 }
 
-function findAuthorID(): string | undefined {
-  // find author eg. https://www.pixiv.net/en/users/xxx
-  const u =
-    document.querySelector<HTMLAnchorElement>("a[data-gtm-value][href*='/users/']")?.href
-    || document.querySelector<HTMLAnchorElement>("a.user-details-icon[href*='/users/']")?.href
-    || window.location.href;
-  const author = /users\/(\d+)/.exec(u)?.[1];
-  return author;
-}
 
 ADAPTER.addSetup({
   name: "Pixiv",
