@@ -189,12 +189,20 @@ class KemonoMatcher extends BaseMatcher<KemonoResult[]> {
       chunks.push({ res, list, needFetchPost: !list[0]?.server && list.length > 0 });
     }
     await this.batchFetchPathServerMap(chunks);
+    // deduplicates
+    const originSrcMap = new Map();
     for (const chunk of chunks) {
       for (const file of chunk.list) {
         if (!file.path) continue;
         if (!file.name || !file.server) throw new Error("cannot find image or video name and server");
         const node = newImageNode(chunk.res.id, chunk.res.user, chunk.res.service, file.path, file.name, file.server);
-        if (node) nodes.push(node);
+        if (node) {
+          if (originSrcMap.has(node.originSrc!)) {
+            continue;
+          }
+          originSrcMap.set(node.originSrc!, true);
+          nodes.push(node);
+        }
       }
     }
     return nodes;
