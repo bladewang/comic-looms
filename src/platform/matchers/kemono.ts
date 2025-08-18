@@ -91,7 +91,8 @@ abstract class KemonoListAbstract implements KemonoList {
 
 class KemonoListArtist extends KemonoListAbstract {
   getURL(pages: number, query: string | null): string {
-    const u = new URL(`${window.location.origin}/api/v1${window.location.pathname}/posts-legacy`);
+    // https://kemono.cr/api/v1/fanbox/user/38401163/posts
+    const u = new URL(`${window.location.origin}/api/v1${window.location.pathname}/posts`);
     if (pages > 0) {
       u.searchParams.set("o", pages.toString());
     }
@@ -100,19 +101,14 @@ class KemonoListArtist extends KemonoListAbstract {
     }
     return u.href;
   }
-  getList(response: any): any[] {
-    const list = [...(response.result_previews ?? []), ...(response.result_attachments ?? [])];
-    return list.flat(1);
-
-  }
   getPosts(res: any): KemonoResult[] {
-    return res.results;
+    return res;
+  }
+  getList(_response: any): any[] {
+    return [];
   }
 }
 class KemonoListPosts extends KemonoListAbstract {
-  getPosts(res: any): KemonoResult[] {
-    return res.posts;
-  }
   getURL(pages: number, query: string | null): string {
     const u = new URL(`${window.location.origin}/api/v1${window.location.pathname}`);
     if (pages > 0) {
@@ -122,6 +118,9 @@ class KemonoListPosts extends KemonoListAbstract {
       u.searchParams.set("q", query);
     }
     return u.href;
+  }
+  getPosts(res: any): KemonoResult[] {
+    return res.posts;
   }
   getList(): any[] {
     return [];
@@ -213,7 +212,9 @@ class KemonoMatcher extends BaseMatcher<KemonoResult[]> {
   }
   async batchFetchPathServerMap(chunks: { res: KemonoResult; list: KemonoFile[]; needFetchPost: boolean; }[]) {
     const urls = chunks.filter(chunk => chunk.needFetchPost).map(chunk =>
-      `${window.location.origin}/api/v1/${chunk.res.service}/user/${chunk.res.user}/post/${chunk.res.id}`
+      new Request(`${window.location.origin}/api/v1/${chunk.res.service}/user/${chunk.res.user}/post/${chunk.res.id}`, {
+        headers: { "Accept": "text/css" }
+      })
     );
     const infos = await batchFetch<any>(urls, 10, "json");
     const list = infos.reduce((list, info) => {
