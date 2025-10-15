@@ -480,6 +480,9 @@ function homeForYouEntriesToItems(entries: HomeForYouEntries): { items: Item[], 
   let cursor: string | undefined;
   for (const entry of entries.entries) {
     if (entry.content.entryType === "TimelineTimelineItem" && !entry.entryId.startsWith("promoted-")) {
+      if (!entry.content.itemContent.tweet_results?.result) {
+        continue;
+      }
       items.push(entry.content);
       if (entry.content.itemContent.tweet_results.result.legacy?.id_str) {
         ids.push(entry.content.itemContent.tweet_results.result.legacy.id_str);
@@ -489,12 +492,14 @@ function homeForYouEntriesToItems(entries: HomeForYouEntries): { items: Item[], 
       }
     } else if (entry.content.entryType === "TimelineTimelineModule" && entry.content.displayType === "VerticalConversation") {
       entry.content.items.forEach(i => {
-        items.push(i.item);
-        if (i.item.itemContent.tweet_results.result.legacy?.id_str) {
-          ids.push(i.item.itemContent.tweet_results.result.legacy?.id_str);
-        }
-        if (i.item.itemContent.tweet_results.result.legacy?.retweeted_status_result?.result?.legacy?.id_str) {
-          ids.push(i.item.itemContent.tweet_results.result.legacy?.retweeted_status_result?.result?.legacy?.id_str);
+        if (i.item.itemContent.tweet_results?.result) {
+          items.push(i.item);
+          if (i.item.itemContent.tweet_results.result.legacy?.id_str) {
+            ids.push(i.item.itemContent.tweet_results.result.legacy?.id_str);
+          }
+          if (i.item.itemContent.tweet_results.result.legacy?.retweeted_status_result?.result?.legacy?.id_str) {
+            ids.push(i.item.itemContent.tweet_results.result.legacy?.retweeted_status_result?.result?.legacy?.id_str);
+          }
         }
       });
     } else if (entry.content.entryType === "TimelineTimelineCursor" && entry.entryId.startsWith("cursor-bottom")) {
