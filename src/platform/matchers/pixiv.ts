@@ -51,7 +51,7 @@ type UgoiraMeta = {
 }
 
 interface PixivAPI {
-  fetchChapters(): Promise<Chapter[]>;
+  fetchChapters(): AsyncGenerator<Chapter[]>;
   next(source: Chapter): AsyncGenerator<Result<ArtistPIDs[]>>;
   title(): string;
 }
@@ -70,7 +70,7 @@ class PixivHomeAPI implements PixivAPI {
   homeData?: PixivTop;
   thumbnails: Record<string, PixivTop["thumbnails"]["illust"][0]> = {};
   pids: Record<string, string[]> = {};
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const { error, body } = (await window.fetch("https://www.pixiv.net/ajax/top/illust?mode=all&lang=en")
       .then(res => res.json())) as { error: boolean, message: string, body: PixivTop };
     if (error) throw new Error("fetch your home data error, check you have already logged in");
@@ -132,9 +132,17 @@ class PixivArtistWorksAPI implements PixivAPI {
       EBUS.subscribe("ifq-do", (_index, imf) => window.localStorage.setItem(`cl-${this.artist}-last-read`, imf.node.href));
     }
   }
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     this.artist = await this.findArtistID();
     if (!this.artist) throw new Error("Cannot find artist id!");
+
+    const currArtWork = window.location.href.match(/artworks\/(\d+)$/)?.[1];
+    if (currArtWork) {
+      const chapter = new Chapter(1, i18n.currentArtWorks.get(), "");
+      this.chapterPids.set(chapter.id, [currArtWork]);
+      yield [chapter];
+    }
+
     // request all illusts from https://www.pixiv.net/ajax/user/{artist}/profile/all
     const res = await window.fetch(`https://www.pixiv.net/ajax/user/${this.artist}/profile/all`).then(resp => resp.json()).catch(Error);
     if (res instanceof Error) throw res;
@@ -148,16 +156,9 @@ class PixivArtistWorksAPI implements PixivAPI {
 
     const latestIndex = latest ? pidList.indexOf(latest) : -1;
     if (latestIndex > 0) {
-      const chapter = new Chapter(chapters.length + 1, i18n.latestArtWorks, "");
+      const chapter = new Chapter(chapters.length + 2, i18n.latestArtWorks, "");
       const sliced = [...pidList.slice(0, latestIndex)];
       this.chapterPids.set(chapter.id, sliced);
-      chapters.push(chapter);
-    }
-
-    const currArtWork = window.location.href.match(/artworks\/(\d+)$/)?.[1];
-    if (currArtWork) {
-      const chapter = new Chapter(chapters.length + 1, i18n.currentArtWorks.get(), "");
-      this.chapterPids.set(chapter.id, [currArtWork]);
       chapters.push(chapter);
     }
 
@@ -165,23 +166,24 @@ class PixivArtistWorksAPI implements PixivAPI {
       const lastRead = window.localStorage.getItem(`cl-${this.artist}-last-read`)?.match(/artworks\/(\d+)$/)?.[1];
       const lastReadIndex = lastRead ? pidList.indexOf(lastRead) : -1;
       if (lastReadIndex > 0 && lastReadIndex < pidList.length - 1) {
-        const chapterAfterRead = new Chapter(chapters.length + 1, ADAPTER.conf.pixivAscendWorks ? i18n.beforeLastReading.get() : i18n.afterLastReading.get(), "");
+        const chapterAfterRead = new Chapter(chapters.length + 2, ADAPTER.conf.pixivAscendWorks ? i18n.beforeLastReading.get() : i18n.afterLastReading.get(), "");
         const slicedAfter = [...pidList.slice(lastReadIndex)];
         this.chapterPids.set(chapterAfterRead.id, slicedAfter);
         chapters.push(chapterAfterRead);
 
-        const chapterBeforeRead = new Chapter(chapters.length + 1, ADAPTER.conf.pixivAscendWorks ? i18n.afterLastReading.get() : i18n.beforeLastReading.get(), "");
+        const chapterBeforeRead = new Chapter(chapters.length + 2, ADAPTER.conf.pixivAscendWorks ? i18n.afterLastReading.get() : i18n.beforeLastReading.get(), "");
         const slicedBefore = [...pidList.slice(0, lastReadIndex + 1)];
         this.chapterPids.set(chapterBeforeRead.id, slicedBefore);
         chapters.push(chapterBeforeRead);
       }
     }
 
-    const chapter = new Chapter(chapters.length + 1, i18n.allArtWorks.get(), "");
+    const chapter = new Chapter(chapters.length + 2, i18n.allArtWorks.get(), "");
     this.chapterPids.set(chapter.id, pidList);
     chapters.push(chapter);
     return chapters;
   }
+
   async *next(chapter: Chapter): AsyncGenerator<Result<ArtistPIDs[]>> {
     let pidList = this.chapterPids.get(chapter.id);
     if (!pidList) throw new Error("cannot get pid list of " + chapter.title);
@@ -193,6 +195,7 @@ class PixivArtistWorksAPI implements PixivAPI {
       yield Result.ok([{ id: this.artist, pids }]);
     }
   }
+
   async findArtistID(): Promise<string | undefined> {
     // find artist eg. https://www.pixiv.net/en/users/xxx
     let href: string | undefined = window.location.href;
@@ -302,7 +305,7 @@ class PixivMatcher extends BaseMatcher<ArtistPIDs[]> {
   }
 
 
-  fetchChapters(): Promise<Chapter[]> {
+  fetchChapters(): AsyncGenerator<Chapter[]> {
     this.csrfToken = document.querySelector("#__NEXT_DATA__")?.textContent?.match(/\\"api\\":\{\\"token\\":\\"(\w+)\\"/)?.[1];
     return this.api.fetchChapters();
   }

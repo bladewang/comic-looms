@@ -8,7 +8,7 @@ import * as zip_js from "@zip.js/zip.js";
 class MiniServeMatcher extends BaseMatcher<string> {
   map: Map<number, Map<string, Promise<Blob>>> = new Map();
   currentDirectorMedias: ImageNode[] = [];
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const list = Array.from(document.querySelectorAll<HTMLAnchorElement>("table tbody a.file"));
     const chapters: Chapter[] = [];
     let id = 1;

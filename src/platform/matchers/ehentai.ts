@@ -109,7 +109,7 @@ class EHMatcher extends BaseMatcher<string> {
     return chapter.meta;
   }
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const chapter = new Chapter(0, "Default", window.location.href);
     this.docMap[0] = document;
     this.galleryMeta(chapter);

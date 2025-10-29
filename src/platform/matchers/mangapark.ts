@@ -5,7 +5,7 @@ import { BaseMatcher, OriginMeta, Result } from "../platform";
 
 class MangaParkMatcher extends BaseMatcher<string> {
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     let list = Array.from(document.querySelectorAll<HTMLAnchorElement>("div[data-name='chapter-list'] .flex-col > .px-2 > .space-x-1 > a"));
     if (list.length === 0) {
       list = Array.from(document.querySelectorAll<HTMLAnchorElement>("div[data-name='chapter-list'] .flex-col-reverse > .px-2 > .space-x-1 > a"));

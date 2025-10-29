@@ -46,7 +46,7 @@ function drawImage(ctx: CanvasRenderingContext2D, e: ImageBitmap, gid: string, p
 class Comic18Matcher extends BaseMatcher<string> {
   meta?: GalleryMeta;
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const ret: Chapter[] = [];
     const thumb = document.querySelector<HTMLImageElement>(".thumb-overlay > img");
     const chapters = Array.from(document.querySelectorAll<HTMLAnchorElement>(".visible-lg .episode > ul > a"));

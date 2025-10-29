@@ -42,7 +42,7 @@ class MHGMatcher extends BaseMatcher<string> {
   async fetchOriginMeta(node: ImageNode): Promise<OriginMeta> {
     return { url: node.originSrc! };
   }
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const thumbimg = document.querySelector<HTMLImageElement>(".book-cover img")?.src;
     const chapters: Chapter[] = [];
     document.querySelectorAll<HTMLElement>(".chapter-list").forEach(element => {

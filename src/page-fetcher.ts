@@ -103,17 +103,19 @@ export class PageFetcher {
     this.abortb = true;
   }
 
+  appendNewChapters_(chapters: Chapter[], first: boolean) {
+    chapters.forEach(c => {
+      c.sourceIter = this.matcher.fetchPagesSource(c);
+      c.onclick = (index) => this.changeToChapter(index);
+    });
+    this.chapters.push(...chapters);
+    EBUS.emit("pf-update-chapters", this.chapters, !first);
+  }
+
   async appendNewChapters(url: string) {
     try {
       const chapters = await this.matcher.appendNewChapters(url, this.chapters);
-      if (chapters && chapters.length > 0) {
-        chapters.forEach(c => {
-          c.sourceIter = this.matcher.fetchPagesSource(c);
-          c.onclick = (index) => this.changeToChapter(index);
-        });
-        this.chapters.push(...chapters);
-        EBUS.emit("pf-update-chapters", this.chapters, true);
-      }
+      if (chapters && chapters.length > 0) this.appendNewChapters_(chapters, false);
     } catch (error) {
       EBUS.emit("notify-message", "error", `${error}`);
     }
@@ -142,16 +144,26 @@ export class PageFetcher {
       console.error(err);
       EBUS.emit("notify-message", "error", "cannot create your node actions, " + err);
     }
-    this.chapters = await this.matcher.fetchChapters().catch(reason => EBUS.emit("notify-message", "error", reason.toString()) || []);
-    this.afterInit?.();
-    this.chapters.forEach(c => {
-      c.sourceIter = this.matcher.fetchPagesSource(c);
-      c.onclick = (index) => this.changeToChapter(index);
-    });
-    EBUS.emit("pf-update-chapters", this.chapters);
 
-    if (this.chapters.length === 1) {
-      this.changeToChapter(0);
+    const chaptersIter = this.matcher.fetchChapters();
+    let first = true;
+    while (true) {
+      try {
+        const chapters = await chaptersIter.next();
+        if (chapters.value) {
+          this.appendNewChapters_(chapters.value, first);
+          if (first) {
+            this.afterInit?.();
+            if (this.chapters.length === 1) {
+              this.changeToChapter(0);
+            }
+            first = false;
+          }
+        }
+        if (chapters.done) break;
+      } catch (error) {
+        EBUS.emit("notify-message", "error", error + "");
+      }
     }
   }
 
@@ -213,18 +225,25 @@ export class PageFetcher {
       if (chapter.done || this.abortb) return false;
       // fetch next page data
       const next = await chapter.sourceIter!.next();
+      if (next.value?.error) {
+        chapter.done = true;
+        throw next.value.error;
+      }
+      // Parse the next page data to IMGFetcher[], then append to view and IMGFetcherQueue
+      if (next.value?.value) {
+        return await this.appendImages(next.value.value);
+      }
       // If chapter.sourceIter is done, call this.appendToView() to trigger the update of some view elements
       if (next.done) {
         chapter.done = true;
-        this.appendToView(this.queue.length, [], this.chapterIndex, true);
-        return false;
-      } else {
-        if (next.value.error) {
-          chapter.done = true;
-          throw next.value.error;
+        if (next.value?.value) {
+          return await this.appendImages(next.value.value);
+        } else {
+          this.appendToView(this.queue.length, [], this.chapterIndex, true);
+          return false;
         }
-        // Parse the next page data to IMGFetcher[], then append to view and IMGFetcherQueue
-        return await this.appendImages(next.value.value);
+      } else {
+        return false;
       }
     } catch (error) {
       evLog("error", "PageFetcher:appendNextPage error: ", error);

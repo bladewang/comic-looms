@@ -111,7 +111,7 @@ type HomeConversation = {
 type Instructions = [UserMediaAddToModule, UserMediaEntries];
 
 interface TwitterAPIClient {
-  fetchChapters(): Chapter[];
+  fetchChapters(): AsyncGenerator<Chapter[]>;
   next(chapter: Chapter, cursor?: string): Promise<[Item[], string | undefined]>;
 }
 
@@ -119,7 +119,7 @@ class TwitterUserMediasAPI implements TwitterAPIClient {
   uuid = uuid();
   userID?: string;
 
-  fetchChapters(): Chapter[] {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     if (window.location.href.includes("/media")) {
       return [new Chapter(1, "User Medias", window.location.href, "https://pbs.twimg.com/profile_images/1683899100922511378/5lY42eHs_bigger.jpg")];
     } else {
@@ -184,7 +184,7 @@ class TwitterListsAPI implements TwitterAPIClient {
   uuid = uuid();
   listID?: string;
 
-  fetchChapters(): Chapter[] {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     return [new Chapter(1, "User Medias", window.location.href)];
   }
 
@@ -224,7 +224,7 @@ class TwitterHomeForYouAPI implements TwitterAPIClient {
   chapterCursors: Record<number, string | undefined> = { 1: undefined, 2: undefined, 3: undefined };
   myID?: string;
 
-  fetchChapters(): Chapter[] {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     return [
       new Chapter(1, "For you", window.location.href, "https://pbs.twimg.com/profile_images/1683899100922511378/5lY42eHs_bigger.jpg"),
       new Chapter(2, "Following", window.location.href, "https://pbs.twimg.com/profile_images/1683899100922511378/5lY42eHs_bigger.jpg"),
@@ -325,7 +325,7 @@ class TwitterMatcher extends BaseMatcher<Item[]> {
     }
   }
 
-  async fetchChapters(): Promise<Chapter[]> {
+  fetchChapters(): AsyncGenerator<Chapter[]> {
     return this.api.fetchChapters();
   }
 

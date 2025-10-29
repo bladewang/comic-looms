@@ -39,7 +39,7 @@ export interface Matcher<P> {
    *  In `BaseMatcher`, `fetchChapters` has a default implementation that returns a single default chapter.  
    *  For other sites with multi-chapter comics, you need to retrieve all chapter information from the page or API in this step.
    */
-  fetchChapters(): Promise<Chapter[]>;
+  fetchChapters(): AsyncGenerator<Chapter[], Chapter[], Chapter[]>;
 
   /** STEP 2: Fetch the data source for each page
    *  This method returns an async generator. In the UI, when scrolling to the bottom of the thumbnail grid,  
@@ -107,7 +107,7 @@ export class SubData {
 
 export abstract class BaseMatcher<P> implements Matcher<P> {
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[], Chapter[], Chapter[]> {
     return [new Chapter(0, "Default", window.location.href)];
   }
 

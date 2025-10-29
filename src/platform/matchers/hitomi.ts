@@ -94,7 +94,7 @@ class HitomiMather extends BaseMatcher<GalleryInfo> {
   formats: string[] = ["avif", "jxl", "webp"];
   formatIndex: number = 0;
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     this.formatIndex = ADAPTER.conf.hitomiFormat === "auto" ? 0 : this.formats.indexOf(ADAPTER.conf.hitomiFormat);
     if (this.formatIndex === -1) {
       throw new Error("invalid hitomi format: " + ADAPTER.conf.hitomiFormat);

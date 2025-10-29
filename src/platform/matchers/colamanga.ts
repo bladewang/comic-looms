@@ -86,7 +86,7 @@ class ColaMangaMatcher extends BaseMatcher<string> {
   keymap?: Record<number, string>;
   keys: string[] = ["dDeIieDgQpwVQZsJ", "54bilXmmMoYBqBcI", "KcmiZ8owmiBoPRMf", "4uOJvtnq5YYIKZWA", "lVfo0i0o4g3V78Rt", "i8XLTfT8Mvu1Fcv2"];
   getActualK?: Function;
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     this.keys = await initColamangaKeys();
     [this.keymap, this.getActualK] = await initColaMangaKeyMap();
     // console.log("colamanga keys: ", this.keys);

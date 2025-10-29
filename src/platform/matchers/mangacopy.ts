@@ -45,7 +45,7 @@ class MangaCopyMatcher extends BaseMatcher<string> {
   async fetchOriginMeta(node: ImageNode): Promise<OriginMeta> {
     return { url: node.originSrc! };
   }
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     const thumbimg = document.querySelector<HTMLImageElement>(".comicParticulars-left-img > img[data-src]")?.getAttribute("data-src") || undefined;
     const pathWord = window.location.href.match(PATH_WORD_REGEX)?.[1];
     if (!pathWord) throw new Error("cannot match comic id");

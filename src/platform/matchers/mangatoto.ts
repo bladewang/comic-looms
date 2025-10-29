@@ -33,7 +33,7 @@ class BatotoMatcher extends BaseMatcher<Document> {
     return this.meta;
   }
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     let elements = Array.from(document.querySelectorAll<HTMLDivElement>("div[name=chapter-list] .scrollable-panel .flex-col-reverse astro-slot > div"));
     elements = elements.reverse();
     if (elements.length === 0) {

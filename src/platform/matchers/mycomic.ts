@@ -22,7 +22,7 @@ class MyComicMatcher extends BaseMatcher<Document> {
     this.meta = new GalleryMeta(window.location.href, title);
   }
 
-  async fetchChapters(): Promise<Chapter[]> {
+  async *fetchChapters(): AsyncGenerator<Chapter[]> {
     this.initGalleryMeta();
     const volumes = Array.from(document.querySelectorAll<HTMLDivElement>(".mt-8.mb-12 > div[x-data]"));
     const result = [];
