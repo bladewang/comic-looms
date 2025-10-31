@@ -13,6 +13,7 @@ import { evLog } from "../utils/ev-log";
 import { DownloaderPanel } from "../ui/downloader-panel";
 import { i18n } from "../utils/i18n";
 import { ADAPTER } from "../platform/adapt";
+import { generateConvertScript } from "../utils/ffmpeg";
 
 const FILENAME_INVALIDCHAR = /[\\/:*?"<>|\n\t]/g;
 export class Downloader {
@@ -224,10 +225,14 @@ export class Downloader {
     const fQueue = chapter.filteredQueue.filter((imf, i) => picked.picked(i) && imf.stage === FetchState.DONE && imf.data);
     const ret = [];
 
+    let needConvertScript = false;
     for (let i = 0; i < fQueue.length; i++) {
       const imf = fQueue[i];
       if (imf.data instanceof SubData) {
         const subDirectory = imf.data.directory.replaceAll(FILENAME_INVALIDCHAR, "_");
+        if (subDirectory.includes("ugoira0")) {
+          needConvertScript = true;
+        }
         for (const sd of imf.data.list) {
           const data = sd.data;
           const size = data.byteLength;
@@ -235,7 +240,7 @@ export class Downloader {
           const file = {
             stream: () => Promise.resolve(uint8ArrayToReadableStream(data)),
             size: () => size,
-            name: directory + SEP + subDirectory + SEP + name,
+            name: directory + (directory === "" ? "" : SEP) + subDirectory + SEP + name,
           };
           ret.push(file);
         }
@@ -245,7 +250,7 @@ export class Downloader {
         const file = {
           stream: () => Promise.resolve(uint8ArrayToReadableStream(data)),
           size: () => size,
-          name: directory + SEP + checkTitle(imf.node.title, i)
+          name: directory + (directory === "" ? "" : SEP) + checkTitle(imf.node.title, i)
         };
         ret.push(file);
       }
@@ -255,8 +260,21 @@ export class Downloader {
     ret.push({
       stream: () => Promise.resolve(uint8ArrayToReadableStream(meta)),
       size: () => meta.byteLength,
-      name: directory + "meta.json"
+      name: directory + (directory === "" ? "" : SEP) + "meta.json"
     });
+    if (needConvertScript) {
+      const scripts = generateConvertScript();
+      scripts.forEach((sc, i) => {
+        const r = new TextEncoder().encode(sc);
+        ret.push({
+          stream: () => Promise.resolve(uint8ArrayToReadableStream(r)),
+          size: () => r.byteLength,
+          name: directory + (directory === "" ? "" : SEP) + "convert_to_gif." + (i === 0 ? "sh" : "bat"),
+          unixPermissions: "755",
+        });
+      })
+
+    }
     return ret;
   }
 

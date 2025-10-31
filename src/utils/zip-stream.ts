@@ -36,6 +36,7 @@ export interface FileLike {
   size(): number;
   stream(): Promise<ReadableStream<Uint8Array>>;
   name: string;
+  unixPermissions?: string; // '755' '644'
 }
 
 class ZipObject {
@@ -50,6 +51,7 @@ class ZipObject {
   compressedLength: number;
   uncompressedLength: number;
   volumeNo: number;
+  unixPermissions?: number;
 
   constructor(file: FileLike, volumeNo: number) {
     this.level = 0;
@@ -64,6 +66,10 @@ class ZipObject {
     this.compressedLength = 0;
     this.uncompressedLength = 0;
     this.volumeNo = volumeNo;
+    if (file.unixPermissions) {
+      const perms = parseInt(file.unixPermissions, 8);
+      this.unixPermissions = (0O100000 | perms) << 16;
+    }
   }
 }
 
@@ -203,7 +209,7 @@ export class Zip {
 
   private async closeZip() {
     const fileCount = this.files.length;
-    // Central directory size 
+    // Central directory size
     let centralDirLength = 0;
     let idx = 0;
 
@@ -217,10 +223,15 @@ export class Zip {
     for (idx = 0; idx < fileCount; idx++) {
       const file = this.files[idx];
       data.view.setUint32(dataOffset, 0x504b0102);
-      data.view.setUint16(dataOffset + 4, 0x1400);
+      data.view.setUint16(dataOffset + 4, 0x0314, true);
       data.array.set(file.header.array, dataOffset + 6);
       data.view.setUint16(dataOffset + 32, file.comment.length, true);
       data.view.setUint16(dataOffset + 34, file.volumeNo, true); // disk number start
+
+      const internalAttributes = file.directory ? 0x0010 : 0x0000;
+      data.view.setUint16(dataOffset + 36, internalAttributes, true);
+      data.view.setUint32(dataOffset + 38, file.unixPermissions || 0, true);
+
       data.view.setUint32(dataOffset + 42, file.offset, true);
       data.array.set(file.nameBuf, dataOffset + 46);
       data.array.set(file.comment, dataOffset + 46 + file.nameBuf.length);

@@ -457,8 +457,8 @@ export const ConfigItems: ConfigItem[] = [
   {
     key: "pixivUgoiraMode", typ: "select", options: [
       { value: "ugoira", display: "Ugoira" },
-      { value: "gif", display: "gif" },
-      { value: "mp4", display: "mp4" },
+      { value: "gif", display: "GIF" },
+      { value: "mp4", display: "MP4" },
     ], displayInSite: /pixiv.net/
   },
   {
