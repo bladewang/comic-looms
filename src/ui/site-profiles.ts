@@ -37,13 +37,11 @@ export default function createSiteProfilePanel(root: HTMLElement, onclose?: () =
   const matchers = ADAPTER.matchers;
   const listItems = matchers.map((matcher) => {
     const name = matcher.name;
-    const profile = getSiteConfig(name);
     const id = "id-" + b64EncodeUnicode(name).replaceAll(/[+=\/]/g, "-");
     return `<li data-index="${id}" class="ehvp-custom-panel-list-item">
              <div class="ehvp-custom-panel-list-item-title">
                <div style="font-size: 1.2em;font-weight: 800;">${name}</div>
                <div>
-                 <label class="ehvp-custom-panel-checkbox"><span>${i18n.enable.get()}: </span><input id="${id}-enable-checkbox" ${profile.enable ?? true ? "checked" : ""} type="checkbox"></label>
                  <label class="ehvp-custom-panel-checkbox"><span>${i18n.addRegexp.get()}: </span><span id="${id}-add-workurl" class="ehvp-custom-btn ehvp-custom-btn-green">&nbsp+&nbsp</span></label>
                </div>
              </div>
@@ -55,11 +53,6 @@ export default function createSiteProfilePanel(root: HTMLElement, onclose?: () =
   <div class="ehvp-custom-panel-title">
     <span>
       <span>${i18n.showSiteProfiles.get()}</span>
-      <span style="font-size:0.5em;">
-        <span class="p-tooltip"> ${i18n.enable.get()}? <span class="p-tooltiptext">${i18n.enableTooltips.get()}</span></span>
-        <span class="p-tooltip"> ${i18n.enableAutoOpen.get()}? <span class="p-tooltiptext">${i18n.enableAutoOpenTooltips.get()}</span></span>
-        <span class="p-tooltip"> ${i18n.enableFlowVision.get()}? <span class="p-tooltiptext">${i18n.enableFlowVisionTooltips.get()}</span></span>
-      </span>
     </span>
     <span id="ehvp-custom-panel-close" class="ehvp-custom-panel-close">✖</span>
   </div>
@@ -95,11 +88,6 @@ export default function createSiteProfilePanel(root: HTMLElement, onclose?: () =
     const getProfile = () => {
       return getSiteConfig(name);
     };
-    // enable script on this site;
-    const enableCheckbox = q<HTMLInputElement>(`#${id}-enable-checkbox`, fullPanel);
-    enableCheckbox.addEventListener("click", () => {
-      saveConf({ enable: enableCheckbox.checked });
-    });
     // add custom work url
     const addWorkURL = q(`#${id}-add-workurl`, fullPanel);
     const workURLContainer = q(`#${id}-workurls`, fullPanel);

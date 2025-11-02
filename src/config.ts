@@ -8,7 +8,6 @@ export const IS_MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Ope
 export type Oriented = "prev" | "next";
 
 export type SiteProfile = {
-  enable?: boolean,
   workURLs?: string[],
 }
 export type ReadMode = "pagination" | "continuous" | "horizontal";

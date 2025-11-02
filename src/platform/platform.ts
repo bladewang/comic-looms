@@ -111,7 +111,7 @@ export abstract class BaseMatcher<P> implements Matcher<P> {
     return [new Chapter(0, "Default", window.location.href)];
   }
 
-  abstract fetchPagesSource(source: Chapter): AsyncGenerator<Result<P>>;
+  abstract fetchPagesSource(source: Chapter): AsyncGenerator<Result<P>, Result<P>, Result<P>>;
   abstract parseImgNodes(pageSource: P, chapterID?: number): Promise<ImageNode[]>;
   abstract fetchOriginMeta(node: ImageNode, retry: boolean, chapterID?: number): Promise<OriginMeta>;
 

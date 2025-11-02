@@ -230,6 +230,7 @@ export class Downloader {
     for (let i = 0; i < fQueue.length; i++) {
       const imf = fQueue[i];
       if (imf.data instanceof SubData) {
+        // TODO: subDirectory checkTitle, keep order
         const subDirectory = imf.data.directory.replaceAll(FILENAME_INVALIDCHAR, "_");
         if (subDirectory.includes("ugoira0")) {
           needConvertScript = true;
