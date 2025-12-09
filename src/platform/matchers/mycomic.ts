@@ -56,7 +56,7 @@ class MyComicMatcher extends BaseMatcher<Document> {
     }
   }
 
-  async parseImgNodes(doc: Document, _chapterID?: number): Promise<ImageNode[]> {
+  async parseImgNodes(doc: Document): Promise<ImageNode[]> {
     const imgs = Array.from(doc.querySelectorAll<HTMLImageElement>(".\\-mx-6 > img[x-ref]"));
     if (imgs.length === 0) throw new Error("无法找到图片信息, CSS选择器: .\\-mx-6 > img[x-ref]");
     const imgNodes = [];
@@ -79,7 +79,17 @@ class MyComicMatcher extends BaseMatcher<Document> {
     return { url: node.originSrc! };
   }
 
+  headers(): Record<string, string> {
+    return {
+      "Referer": "https://mycomic.com/",
+      "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+      "Sec-Fetch-Dest": "image",
+      "Sec-Fetch-Mode": "no-cors",
+      "Sec-Fetch-Site": "cross-site",
+    };
+  }
 }
+
 ADAPTER.addSetup({
   name: "My Comic",
   workURLs: [
