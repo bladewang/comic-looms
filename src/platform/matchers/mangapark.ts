@@ -1,9 +1,20 @@
+import { IMGFetcher } from "../../img-fetcher";
 import ImageNode from "../../img-node";
 import { Chapter } from "../../page-fetcher";
 import { ADAPTER } from "../adapt";
 import { BaseMatcher, OriginMeta, Result } from "../platform";
 
 class MangaParkMatcher extends BaseMatcher<string> {
+
+  preferServer: { server: string, done: number }[] = [];
+  // serverPrefix: string[] = ["s01", "s03", "s04", "s00", "s05", "s06", "s07", "s08", "s09", "s10", "s02"];
+  // servers: string[] = [];
+  //
+  constructor() {
+    super()
+    const ls = window.localStorage.getItem("prefer-services");
+    this.preferServer = ls ? JSON.parse(ls) : [];
+  }
 
   async *fetchChapters(): AsyncGenerator<Chapter[]> {
     let list = Array.from(document.querySelectorAll<HTMLAnchorElement>("div[data-name='chapter-list'] .flex-col > .px-2 > .space-x-1 > a"));
@@ -36,6 +47,43 @@ class MangaParkMatcher extends BaseMatcher<string> {
 
   async fetchOriginMeta(node: ImageNode): Promise<OriginMeta> {
     return { url: node.originSrc! };
+  }
+
+  async fetchImageData(imf: IMGFetcher): Promise<Blob | null> {
+    let ret = await super.fetchImageData(imf).catch(Error);
+    const url = new URL(imf.node.originSrc!);
+    if (ret === null || ret instanceof Error || ret?.type.startsWith("text")) { // server down
+      this.updatePerferServer(url.host, true);
+      this.preferServer = this.preferServer.sort((a, b) => {
+        if (a.done === b.done) return Math.random() - 0.5;
+        return b.done - a.done;
+      });
+      console.log("server down, try other servers", this.preferServer);
+      for (const server of this.preferServer) {
+        url.host = server.server;
+        imf.node.originSrc = url.href;
+        ret = await super.fetchImageData(imf);
+        if (ret?.type.startsWith("image")) {
+          break;
+        };
+        this.updatePerferServer(url.host, true);
+      }
+    }
+    if (ret instanceof Error) throw ret;
+    if (ret?.type.startsWith("image")) {
+      this.updatePerferServer(url.host);
+    }
+    return ret;
+  }
+
+  updatePerferServer(server: string, failed?: boolean) {
+    const found = this.preferServer.findIndex(v => v.server === server);
+    if (found > -1) {
+      this.preferServer[found].done = Math.min(20, (this.preferServer[found].done + (failed ? -1 : 1)));
+    } else if (!failed) {
+      this.preferServer.push({ server: server, done: 1 });
+    }
+    window.localStorage.setItem("prefer-services", JSON.stringify(this.preferServer));
   }
 
 }
